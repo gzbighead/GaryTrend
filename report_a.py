@@ -139,7 +139,7 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 趋势跟踪原则：资本保护优先，只在右侧确认后入场，不抄底")
     lines.append("   - 给出具体的观察触发点（不是预测，而是'如果...则...'的条件句）")
     lines.append("")
-    lines.append("风格：直接给判断，说清楚依据，不写废话，不做股评式的模糊表达。")
+    lines.append("风格：态度鲜明，直接给结论，说清楚依据。没有100%正确的投资，只有废话才能100%正确。分析可以错，但不能模糊。不写'需要观察''存在可能''或许'这类股评式的模糊表达。每一个判断都要有明确立场。")
 
     return "\n".join(lines)
 
