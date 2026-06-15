@@ -2,7 +2,7 @@ name: A股趋势报告
 
 on:
   repository_dispatch:
-    types: [run_report_a]
+    types: [run_repo_f]
 
 jobs:
   report:
