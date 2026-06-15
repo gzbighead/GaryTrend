@@ -20,8 +20,8 @@ from engine import (
 )
 
 # ─── 配置 ──────────────────────────────────────────────────────────────────
-EMAIL_TO   = ["garyfocus@hotmail.com", "hua@ceic.ca"]
-EMAIL_FROM = "美股趋势报告 <gary@ceic.ca>"
+EMAIL_TO   = ["garyfocus@hotmail.com"]
+EMAIL_FROM = "美股趋势报告 <mesenger@ceic.ca>"
 SIGNAL_DAYS = 3   # 信号回看天数：今天/昨天/前天
 TREND_DAYS  = 60  # 趋势回看天数
 
