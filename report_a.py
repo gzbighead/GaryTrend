@@ -1,0 +1,394 @@
+#!/usr/bin/env python3
+"""
+A股趋势报告
+每天运行，输出：
+  - 今天/昨天/前天 信号汇总
+  - 当前状态截面（多头/空头/板块分布）
+  - 60天趋势方向
+  - AI综合判断
+"""
+
+import os
+import datetime
+import requests
+
+from watchlist_a import WATCHLIST_A, classify_a
+from engine import (
+    scan_symbol, calc_state, calc_sector_state,
+    calc_signals, calc_trend_series, calc_sector_trend,
+    last_n_days,
+)
+
+# ─── 配置 ──────────────────────────────────────────────────────────────────
+EMAIL_TO   = ["garyfocus@hotmail.com", "hua@ceic.ca"]
+EMAIL_FROM = "A股趋势报告 <gary@ceic.ca>"
+SIGNAL_DAYS = 3   # 信号回看天数：今天/昨天/前天
+TREND_DAYS  = 60  # 趋势回看天数
+
+# ─── 工具函数 ──────────────────────────────────────────────────────────────
+def fmt_val(v, decimals=3):
+    return f"{v:.{decimals}f}" if v is not None else "-"
+
+def trend_emoji(t):
+    return "🟢" if t == 1 else "🔴"
+
+def pct_color(pct):
+    if pct >= 70: return "#1a7340"
+    if pct >= 50: return "#2e7d32"
+    if pct >= 30: return "#856404"
+    return "#922b21"
+
+def pct_bg(pct):
+    if pct >= 70: return "#e6f4ea"
+    if pct >= 50: return "#f0f7f0"
+    if pct >= 30: return "#fef9e7"
+    return "#fdecea"
+
+def dir_color(d):
+    return "#1a7340" if "↑" in d else ("#922b21" if "↓" in d else "#888")
+
+# ─── 组织AI prompt ─────────────────────────────────────────────────────────
+def build_prompt(report_date, signal_dates, signals_by_date,
+                 current_state, sector_state, trend_series, sector_trend, results):
+    lines = []
+    lines.append(f"以下是美股市场截至 {report_date} 的Supertrend技术面扫描数据。")
+    lines.append("请根据数据给出市场分析和投资建议，重点关注趋势方向和板块轮动。")
+    lines.append("")
+
+    # 信号
+    lines.append("【最近3日信号】")
+    for date in signal_dates:
+        sigs = signals_by_date[date]
+        bull_n = len(sigs["空转多"])
+        bear_n = len(sigs["多转空"])
+        adj_n  = len(sigs["多头调整"])
+        lines.append(f"{date}: 空转多{bull_n}个 多转空{bear_n}个 多头调整{adj_n}个")
+        if sigs["空转多"]:
+            lines.append("  空转多: " + ", ".join(f"{r['symbol']}({r['name']})" for r in sigs["空转多"]))
+        if sigs["多转空"]:
+            lines.append("  多转空: " + ", ".join(f"{r['symbol']}({r['name']})" for r in sigs["多转空"]))
+    lines.append("")
+
+    # 当前状态
+    s = current_state
+    t = s["total"]
+    lines.append("【当前状态】")
+    lines.append(f"多头: {s['bull']}只({round(s['bull']/t*100) if t else 0}%) "
+                 f"多头调整: {s['adj']}只 "
+                 f"空头: {s['bear']}只({round(s['bear']/t*100) if t else 0}%) "
+                 f"共{t}只")
+    lines.append("")
+
+    # 板块状态
+    lines.append("【板块多头比例（当前）】")
+    sorted_sec = sorted(sector_state.items(), key=lambda x: x[1]["pct"], reverse=True)
+    for sec, stat in sorted_sec:
+        direction = sector_trend.get(sec, {}).get("direction", "-")
+        lines.append(f"  {sec:<12} {stat['pct']:>3}%  {direction}  ({stat['bull']}/{stat['total']}只)")
+    lines.append("")
+
+    # 60天趋势（取每周五或每5个点一个，避免数据过多）
+    lines.append("【60天多头比例趋势（每5日一个采样点）】")
+    sampled = trend_series[::5] + ([trend_series[-1]] if trend_series else [])
+    for pt in sampled:
+        lines.append(f"  {pt['date']}  多头{pt['bull_pct']}%  ({pt['bull']}/{pt['total']})")
+    lines.append("")
+
+    # 指数和个股状态
+    lines.append("【指数和核心个股（当前状态）】")
+    for r in results:
+        if r["layer"] not in ("index", "stock"): continue
+        snap = r["snapshots"][-1] if r["snapshots"] else None
+        if not snap: continue
+        t_str  = "多头" if snap["trend"] == 1 else "空头"
+        st_str = f"趋势线距离{snap['st_dist']:+.1f}%" if snap["st_dist"] is not None else ""
+        lines.append(f"  {r['symbol']:<8} {r['name']:<16} {t_str}  {st_str}")
+    lines.append("")
+
+    lines.append("请用中文输出分析报告，包含：")
+    lines.append("1. 市场总结：当前处于什么阶段（牛市/熊市/震荡），趋势在改善还是恶化")
+    lines.append("2. 板块分析：哪些板块在转强，哪些在转弱，有无早期信号值得关注")
+    lines.append("3. 关键标的点评：指数和个股的简要判断")
+    lines.append("4. 操作建议：基于趋势跟踪原则，资本保护优先，只在右侧确认后入场")
+    lines.append("风格：简洁直接，不需要过多解释，重点给出判断和建议。")
+
+    return "\n".join(lines)
+
+# ─── 调用Claude API ────────────────────────────────────────────────────────
+def call_claude(prompt):
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return "（未设置ANTHROPIC_API_KEY）"
+    res = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "x-api-key":         api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type":      "application/json",
+        },
+        json={
+            "model":      "claude-sonnet-4-6",
+            "max_tokens": 2000,
+            "messages":   [{"role": "user", "content": prompt}],
+        },
+        timeout=60,
+    )
+    if res.status_code == 200:
+        return res.json()["content"][0]["text"]
+    return f"（API调用失败：{res.status_code}）"
+
+# ─── 生成HTML ──────────────────────────────────────────────────────────────
+def build_html(report_date, signal_dates, signals_by_date,
+               current_state, sector_state, trend_series, sector_trend,
+               results, ai_text):
+
+    th  = 'style="padding:6px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:left;border-bottom:1px solid #ddd;"'
+    thc = 'style="padding:6px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;"'
+
+    def section_header(emoji, title):
+        return f"""
+        <div style="background:#e8f0fe;border-left:4px solid #1a56db;padding:10px 14px;border-radius:4px 4px 0 0;">
+          <span style="font-size:14px;font-weight:bold;color:#1a56db;">{emoji} {title}</span>
+        </div>"""
+
+    def wrap_table(header_html, body_html):
+        return f"""
+        <div style="margin-bottom:24px;">
+          {header_html}
+          <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none;">
+            {body_html}
+          </table>
+        </div>"""
+
+    # ── AI分析 ──
+    ai_html = ai_text.replace("\n\n", "</p><p style='margin:8px 0;'>").replace("\n", "<br>")
+    ai_block = f"""
+    <div style="background:#f8f9ff;border-left:4px solid #1a56db;border-radius:4px;padding:16px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:bold;color:#1a56db;margin-bottom:10px;">🤖 AI市场分析</div>
+      <div style="font-size:14px;line-height:1.8;color:#333;"><p style="margin:0">{ai_html}</p></div>
+    </div>"""
+
+    # ── 状态概况卡片 ──
+    s = current_state
+    t = s["total"]
+    bull_pct = round(s["bull"]/t*100) if t else 0
+    bear_pct = round(s["bear"]/t*100) if t else 0
+    adj_pct  = round(s["adj"]/t*100)  if t else 0
+    state_cards = f"""
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:100px;background:#e6f4ea;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:bold;color:#1a7340;">{s['bull']}</div>
+        <div style="font-size:11px;color:#1a7340;margin-top:2px;">🟢 多头 {bull_pct}%</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#fef9e7;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:bold;color:#856404;">{s['adj']}</div>
+        <div style="font-size:11px;color:#856404;margin-top:2px;">🟡 调整 {adj_pct}%</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#fdecea;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:bold;color:#922b21;">{s['bear']}</div>
+        <div style="font-size:11px;color:#922b21;margin-top:2px;">🔴 空头 {bear_pct}%</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#f0f0f0;border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-size:24px;font-weight:bold;color:#555;">{t}</div>
+        <div style="font-size:11px;color:#555;margin-top:2px;">📊 总扫描</div>
+      </div>
+    </div>"""
+
+    # ── 信号表格 ──
+    signal_rows = ""
+    sig_labels  = {"空转多": ("🟢", "#1a7340", "#e6f4ea"), "多转空": ("🔴", "#922b21", "#fdecea"), "多头调整": ("🟡", "#856404", "#fef9e7")}
+    for date in signal_dates:
+        sigs    = signals_by_date[date]
+        has_any = any(sigs[k] for k in sigs)
+        if not has_any:
+            signal_rows += f'<tr><td style="padding:6px 10px;font-weight:bold;">{date}</td><td colspan="3" style="padding:6px 10px;color:#aaa;">无信号</td></tr>'
+            continue
+        first = True
+        for sig_type, (emoji, color, bg) in sig_labels.items():
+            items = sigs[sig_type]
+            if not items: continue
+            names = "、".join(f"{r['symbol']} {r['name']}" for r in items)
+            date_cell = f'<td style="padding:6px 10px;font-weight:bold;" rowspan="{sum(1 for k in sig_labels if sigs[k])}">{date}</td>' if first else ""
+            first = False
+            signal_rows += (
+                f'<tr>'
+                f'{date_cell}'
+                f'<td style="padding:5px 10px;background:{bg};color:{color};font-weight:bold;white-space:nowrap;">{emoji} {sig_type}</td>'
+                f'<td style="padding:5px 10px;font-size:12px;">{len(items)}只</td>'
+                f'<td style="padding:5px 10px;font-size:12px;color:#555;">{names}</td>'
+                f'</tr>'
+            )
+
+    signal_table = wrap_table(
+        section_header("📡", f"最近{SIGNAL_DAYS}日信号"),
+        f'<thead><tr><th {th}>日期</th><th {th}>信号类型</th><th {thc}>数量</th><th {th}>标的</th></tr></thead>'
+        f'<tbody>{signal_rows}</tbody>'
+    )
+
+    # ── 板块状态表格 ──
+    sorted_sec   = sorted(sector_state.items(), key=lambda x: x[1]["pct"], reverse=True)
+    sector_rows  = ""
+    for sec, stat in sorted_sec:
+        st_trend = sector_trend.get(sec, {})
+        direction = st_trend.get("direction", "-")
+        count     = st_trend.get("count", stat.get("total", 0))
+        bg  = pct_bg(stat["pct"])
+        col = pct_color(stat["pct"])
+        dc  = dir_color(direction)
+        sector_rows += (
+            f'<tr>'
+            f'<td style="padding:6px 10px;font-weight:bold;">{sec}</td>'
+            f'<td style="padding:6px 10px;text-align:center;background:{bg};color:{col};font-weight:bold;">{stat["pct"]}%</td>'
+            f'<td style="padding:6px 10px;text-align:center;font-weight:bold;color:{dc};">{direction}</td>'
+            f'<td style="padding:6px 10px;text-align:center;color:#888;">{stat["bull"]}/{count}只</td>'
+            f'</tr>'
+        )
+
+    sector_table = wrap_table(
+        section_header("🏭", "板块多头比例（当前，5日方向）"),
+        f'<thead><tr><th {th}>板块</th><th {thc}>多头比例</th><th {thc}>5日方向</th><th {thc}>ETF数</th></tr></thead>'
+        f'<tbody>{sector_rows}</tbody>'
+    )
+
+    # ── 60天趋势表格（每5日采样）──
+    sampled     = trend_series[::5]
+    if trend_series and (not sampled or sampled[-1] != trend_series[-1]):
+        sampled.append(trend_series[-1])
+    trend_rows  = ""
+    for i, pt in enumerate(sampled):
+        bg  = "#ffffff" if i % 2 == 0 else "#f9f9f9"
+        col = pct_color(pt["bull_pct"])
+        bgc = pct_bg(pt["bull_pct"])
+        trend_rows += (
+            f'<tr style="background:{bg};">'
+            f'<td style="padding:5px 10px;">{pt["date"]}</td>'
+            f'<td style="padding:5px 10px;text-align:center;background:{bgc};color:{col};font-weight:bold;">{pt["bull_pct"]}%</td>'
+            f'<td style="padding:5px 10px;text-align:center;color:#1a7340;">{pt["bull"]}</td>'
+            f'<td style="padding:5px 10px;text-align:center;color:#856404;">{pt["adj"]}</td>'
+            f'<td style="padding:5px 10px;text-align:center;color:#922b21;">{pt["bear"]}</td>'
+            f'</tr>'
+        )
+
+    trend_table = wrap_table(
+        section_header("📈", "60天多头比例趋势"),
+        f'<thead><tr><th {th}>日期</th><th {thc}>多头占比</th><th {thc}>🟢多头</th><th {thc}>🟡调整</th><th {thc}>🔴空头</th></tr></thead>'
+        f'<tbody>{trend_rows}</tbody>'
+    )
+
+    # ── 指数和个股表格 ──
+    def index_stock_rows(layer):
+        rows = ""
+        for r in results:
+            if r["layer"] != layer: continue
+            snap = r["snapshots"][-1] if r["snapshots"] else None
+            if not snap: continue
+            e      = trend_emoji(snap["trend"])
+            bg     = "#e6f4ea" if snap["trend"] == 1 else "#fdecea"
+            st_d   = f'{snap["st_dist"]:+.1f}%' if snap["st_dist"] is not None else "-"
+            st_col = "#1a7340" if (snap.get("st_dist") or 0) > 0 else "#922b21"
+            ma_d   = f'{snap["ma_dist"]:+.1f}%' if snap["ma_dist"] is not None else "-"
+            rows += (
+                f'<tr>'
+                f'<td style="padding:6px 10px;font-weight:bold;white-space:nowrap;">{r["symbol"]}</td>'
+                f'<td style="padding:6px 10px;color:#555;">{r["name"]}</td>'
+                f'<td style="padding:6px 10px;text-align:center;background:{bg};">{e}</td>'
+                f'<td style="padding:6px 10px;text-align:right;font-weight:bold;color:{st_col};">{st_d}</td>'
+                f'<td style="padding:6px 10px;text-align:right;color:#888;">{ma_d}</td>'
+                f'</tr>'
+            )
+        return rows
+
+    index_table = wrap_table(
+        section_header("📌", "指数状态"),
+        f'<thead><tr><th {th}>代码</th><th {th}>名称</th><th {thc}>趋势</th><th {thc}>趋势线距离</th><th {thc}>均线距离</th></tr></thead>'
+        f'<tbody>{index_stock_rows("index")}</tbody>'
+    )
+
+    stock_table = wrap_table(
+        section_header("⭐", "核心个股状态"),
+        f'<thead><tr><th {th}>代码</th><th {th}>名称</th><th {thc}>趋势</th><th {thc}>趋势线距离</th><th {thc}>均线距离</th></tr></thead>'
+        f'<tbody>{index_stock_rows("stock")}</tbody>'
+    )
+
+    return f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:720px;margin:0 auto;padding:16px;color:#222;">
+      <h2 style="margin:0 0 4px;font-size:18px;">📈 A股市场趋势报告</h2>
+      <p style="margin:0 0 20px;color:#888;font-size:13px;">北京时间 {report_date}</p>
+      {ai_block}
+      {state_cards}
+      {signal_table}
+      {sector_table}
+      {trend_table}
+      {index_table}
+      {stock_table}
+    </div>"""
+
+# ─── 发邮件 ────────────────────────────────────────────────────────────────
+def send_email(html, report_date):
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        print("[邮件] 未设置RESEND_API_KEY")
+        return
+    res = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "from":    EMAIL_FROM,
+            "to":      EMAIL_TO,
+            "subject": f"A股趋势报告 {report_date}",
+            "html":    html,
+        },
+    )
+    print(f"[邮件] {'成功' if res.status_code==200 else '失败'} {res.status_code}")
+
+# ─── 主流程 ────────────────────────────────────────────────────────────────
+def main():
+    now         = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
+    report_date = now.strftime("%Y-%m-%d")
+    print(f"[开始] 美股报告 {report_date} 共{len(WATCHLIST_A)}只")
+
+    # 1. 扫描所有标的
+    results = []
+    for symbol, name in WATCHLIST_A:
+        try:
+            r = scan_symbol(symbol, name, classify_a, SIGNAL_DAYS, TREND_DAYS)
+            if r is None:
+                print(f"  {symbol}: 数据不足，跳过")
+                continue
+            results.append(r)
+            print(f"  {symbol} [{r['layer']}/{r['sector']}] OK")
+        except Exception as e:
+            print(f"  {symbol}: 错误 {e}")
+
+    print(f"[扫描完成] {len(results)}只")
+
+    # 2. 取最近3个交易日的日期
+    all_dates    = sorted({s["date"] for r in results for s in r["snapshots"]})
+    signal_dates = all_dates[-SIGNAL_DAYS:] if len(all_dates) >= SIGNAL_DAYS else all_dates
+
+    # 3. 按日期计算信号
+    signals_by_date = {date: calc_signals(results, date) for date in signal_dates}
+
+    # 4. 当前状态
+    current_state = calc_state(results)
+    sector_state  = calc_sector_state(results)
+
+    # 5. 60天趋势
+    trend_series  = calc_trend_series(results, TREND_DAYS)
+    sector_trend  = calc_sector_trend(results, TREND_DAYS)
+
+    # 6. 调用AI
+    prompt      = build_prompt(report_date, signal_dates, signals_by_date,
+                               current_state, sector_state, trend_series, sector_trend, results)
+    print("[调用Claude API]")
+    ai_text     = call_claude(prompt)
+    print("[AI完成]")
+
+    # 7. 生成HTML并发邮件
+    html = build_html(report_date, signal_dates, signals_by_date,
+                      current_state, sector_state, trend_series, sector_trend,
+                      results, ai_text)
+    send_email(html, report_date)
+
+if __name__ == "__main__":
+    main()
