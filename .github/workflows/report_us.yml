@@ -2,13 +2,13 @@ name: 美股趋势报告
 
 on:
   repository_dispatch:
-    types: [run_report_us]
+    types: [run_repo_e]
 
 jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 安装Python依赖
         run: pip install yfinance numpy requests
