@@ -30,7 +30,13 @@ def fmt_val(v, decimals=3):
     return f"{v:.{decimals}f}" if v is not None else "-"
 
 def trend_emoji(t):
-    return "🟢" if t == 1 else "🔴"
+    return "多头" if t == 1 else "空头"
+
+def trend_cell_style(t):
+    """多头红色，空头蓝色，色弱友好"""
+    if t == 1:
+        return 'style="padding:6px 8px;text-align:center;background:#fdecea;color:#c0392b;font-weight:bold;"'
+    return 'style="padding:6px 8px;text-align:center;background:#e8f0fe;color:#1a56db;font-weight:bold;"'
 
 def pct_color(pct):
     if pct >= 70: return "#1a7340"
@@ -127,7 +133,7 @@ def call_claude(prompt):
             "content-type":      "application/json",
         },
         json={
-            "model":      "claude-sonnet-4-6",
+            "model":      "claude-sonnet-4-5",
             "max_tokens": 2000,
             "messages":   [{"role": "user", "content": prompt}],
         },
@@ -282,16 +288,16 @@ def build_html(report_date, signal_dates, signals_by_date,
             if r["layer"] != layer: continue
             snap = r["snapshots"][-1] if r["snapshots"] else None
             if not snap: continue
-            e      = trend_emoji(snap["trend"])
-            bg     = "#e6f4ea" if snap["trend"] == 1 else "#fdecea"
-            st_d   = f'{snap["st_dist"]:+.1f}%' if snap["st_dist"] is not None else "-"
-            st_col = "#1a7340" if (snap.get("st_dist") or 0) > 0 else "#922b21"
-            ma_d   = f'{snap["ma_dist"]:+.1f}%' if snap["ma_dist"] is not None else "-"
+            t_label  = trend_emoji(snap["trend"])
+            t_style  = trend_cell_style(snap["trend"])
+            st_d     = f'{snap["st_dist"]:+.1f}%' if snap["st_dist"] is not None else "-"
+            st_col   = "#c0392b" if (snap.get("st_dist") or 0) > 0 else "#1a56db"
+            ma_d     = f'{snap["ma_dist"]:+.1f}%' if snap["ma_dist"] is not None else "-"
             rows += (
                 f'<tr>'
                 f'<td style="padding:6px 10px;font-weight:bold;white-space:nowrap;">{r["symbol"]}</td>'
                 f'<td style="padding:6px 10px;color:#555;">{r["name"]}</td>'
-                f'<td style="padding:6px 10px;text-align:center;background:{bg};">{e}</td>'
+                f'<td {t_style}>{t_label}</td>'
                 f'<td style="padding:6px 10px;text-align:right;font-weight:bold;color:{st_col};">{st_d}</td>'
                 f'<td style="padding:6px 10px;text-align:right;color:#888;">{ma_d}</td>'
                 f'</tr>'
@@ -312,7 +318,7 @@ def build_html(report_date, signal_dates, signals_by_date,
 
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:720px;margin:0 auto;padding:16px;color:#222;">
-      <h2 style="margin:0 0 4px;font-size:18px;">📈 A股市场趋势报告</h2>
+      <h2 style="margin:0 0 4px;font-size:18px;">🇨🇳 A股市场趋势报告</h2>
       <p style="margin:0 0 20px;color:#888;font-size:13px;">北京时间 {report_date}</p>
       {ai_block}
       {state_cards}
