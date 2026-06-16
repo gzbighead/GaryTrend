@@ -20,8 +20,8 @@ from engine import (
 )
 
 # ─── 配置 ──────────────────────────────────────────────────────────────────
-EMAIL_TO   = ["garyfocus@hotmail.com"]
-EMAIL_FROM = "A股趋势报告 <messenger@ceic.ca>"
+EMAIL_TO   = ["garyfocus@hotmail.com", "hua@ceic.ca"]
+EMAIL_FROM = "A股趋势报告 <gary@ceic.ca>"
 SIGNAL_DAYS = 3   # 信号回看天数：今天/昨天/前天
 TREND_DAYS  = 60  # 趋势回看天数
 
@@ -171,186 +171,199 @@ def build_html(report_date, signal_dates, signals_by_date,
                current_state, sector_state, trend_series, sector_trend,
                results, ai_text):
 
-    th  = 'style="padding:6px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:left;border-bottom:1px solid #ddd;"'
-    thc = 'style="padding:6px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;"'
+    # ── Zoho移动端兼容：用table属性控制宽度，不依赖CSS flex/max-width ──
 
     def section_header(emoji, title):
-        return f"""
-        <div style="background:#e8f0fe;border-left:4px solid #1a56db;padding:10px 14px;border-radius:4px 4px 0 0;">
-          <span style="font-size:14px;font-weight:bold;color:#1a56db;">{emoji} {title}</span>
-        </div>"""
+        return f"""<table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td style="background:#e8f0fe;border-left:4px solid #1a56db;padding:10px 14px;border-radius:4px 4px 0 0;">
+            <span style="font-size:14px;font-weight:bold;color:#1a56db;">{emoji} {title}</span>
+          </td></tr></table>"""
 
     def wrap_table(header_html, body_html):
-        return f"""
-        <div style="margin-bottom:24px;">
+        return f"""<div style="margin-bottom:20px;">
           {header_html}
-          <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-size:13px;border:1px solid #ddd;border-top:none;">
             {body_html}
-          </table>
-        </div>"""
+          </table></div>"""
 
     # ── AI分析 ──
-    ai_html = ai_text.replace("\n\n", "</p><p style='margin:8px 0;'>").replace("\n", "<br>")
-    ai_block = f"""
-    <div style="background:#f8f9ff;border-left:4px solid #1a56db;border-radius:4px;padding:16px;margin-bottom:24px;">
-      <div style="font-size:13px;font-weight:bold;color:#1a56db;margin-bottom:10px;">🤖 AI市场分析</div>
-      <div style="font-size:14px;line-height:1.8;color:#333;"><p style="margin:0">{ai_html}</p></div>
+    ai_html  = ai_text.replace("\n\n", "</p><p style='margin:8px 0;'>").replace("\n", "<br>")
+    ai_block = f"""<div style="background:#f8f9ff;border-left:4px solid #1a56db;border-radius:4px;padding:14px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:bold;color:#1a56db;margin-bottom:8px;">🤖 A股市场分析</div>
+      <div style="font-size:13px;line-height:1.7;color:#333;"><p style="margin:0">{ai_html}</p></div>
     </div>"""
 
-    # ── 状态概况卡片 ──
-    s = current_state
-    t = s["total"]
+    # ── 状态概况：用table代替flex ──
+    s        = current_state
+    t        = s["total"]
     bull_pct = round(s["bull"]/t*100) if t else 0
     bear_pct = round(s["bear"]/t*100) if t else 0
     adj_pct  = round(s["adj"]/t*100)  if t else 0
-    state_cards = f"""
-    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:100px;background:#e6f4ea;border-radius:8px;padding:14px;text-align:center;">
-        <div style="font-size:24px;font-weight:bold;color:#1a7340;">{s['bull']}</div>
-        <div style="font-size:11px;color:#1a7340;margin-top:2px;">🟢 多头 {bull_pct}%</div>
-      </div>
-      <div style="flex:1;min-width:100px;background:#fef9e7;border-radius:8px;padding:14px;text-align:center;">
-        <div style="font-size:24px;font-weight:bold;color:#856404;">{s['adj']}</div>
-        <div style="font-size:11px;color:#856404;margin-top:2px;">🟡 调整 {adj_pct}%</div>
-      </div>
-      <div style="flex:1;min-width:100px;background:#fdecea;border-radius:8px;padding:14px;text-align:center;">
-        <div style="font-size:24px;font-weight:bold;color:#922b21;">{s['bear']}</div>
-        <div style="font-size:11px;color:#922b21;margin-top:2px;">🔴 空头 {bear_pct}%</div>
-      </div>
-      <div style="flex:1;min-width:100px;background:#f0f0f0;border-radius:8px;padding:14px;text-align:center;">
-        <div style="font-size:24px;font-weight:bold;color:#555;">{t}</div>
-        <div style="font-size:11px;color:#555;margin-top:2px;">📊 总扫描</div>
-      </div>
-    </div>"""
+    state_cards = f"""<table width="100%" cellpadding="6" cellspacing="4" border="0" style="margin-bottom:20px;">
+      <tr>
+        <td width="25%" style="background:#fdecea;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:bold;color:#c0392b;">{s['bull']}</div>
+          <div style="font-size:11px;color:#c0392b;margin-top:2px;">多头 {bull_pct}%</div>
+        </td>
+        <td width="25%" style="background:#fef9e7;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:bold;color:#856404;">{s['adj']}</div>
+          <div style="font-size:11px;color:#856404;margin-top:2px;">调整 {adj_pct}%</div>
+        </td>
+        <td width="25%" style="background:#e8f0fe;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:bold;color:#1a56db;">{s['bear']}</div>
+          <div style="font-size:11px;color:#1a56db;margin-top:2px;">空头 {bear_pct}%</div>
+        </td>
+        <td width="25%" style="background:#f0f0f0;border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:bold;color:#555;">{t}</div>
+          <div style="font-size:11px;color:#555;margin-top:2px;">总扫描</div>
+        </td>
+      </tr>
+    </table>"""
 
-    # ── 信号表格 ──
+    # ── 信号表格：标的单独一行，避免挤压 ──
     signal_rows = ""
-    sig_labels  = {"空转多": ("🟢", "#1a7340", "#e6f4ea"), "多转空": ("🔴", "#922b21", "#fdecea"), "多头调整": ("🟡", "#856404", "#fef9e7")}
+    sig_labels  = {
+        "空转多":   ("#c0392b", "#fdecea"),
+        "多转空":   ("#1a56db", "#e8f0fe"),
+        "多头调整": ("#856404", "#fef9e7"),
+    }
     for date in signal_dates:
         sigs    = signals_by_date[date]
         has_any = any(sigs[k] for k in sigs)
+        # 日期行
+        signal_rows += f'<tr><td colspan="2" style="padding:8px 10px;border-bottom:1px solid #eee;background:#f9f9f9;font-weight:bold;font-size:13px;">{date}</td></tr>'
         if not has_any:
-            signal_rows += f'<tr><td style="padding:6px 10px;font-weight:bold;">{date}</td><td colspan="3" style="padding:6px 10px;color:#aaa;">无信号</td></tr>'
+            signal_rows += f'<tr><td colspan="2" style="padding:6px 10px;border-bottom:1px solid #eee;color:#aaa;font-size:12px;">无信号</td></tr>'
             continue
-        first = True
-        for sig_type, (emoji, color, bg) in sig_labels.items():
+        for sig_type, (color, bg) in sig_labels.items():
             items = sigs[sig_type]
             if not items: continue
-            names = "、".join(f"{r['symbol']} {r['name']}" for r in items)
-            date_cell = f'<td style="padding:6px 10px;font-weight:bold;" rowspan="{sum(1 for k in sig_labels if sigs[k])}">{date}</td>' if first else ""
-            first = False
-            signal_rows += (
-                f'<tr>'
-                f'{date_cell}'
-                f'<td style="padding:5px 10px;background:{bg};color:{color};font-weight:bold;white-space:nowrap;">{emoji} {sig_type}</td>'
-                f'<td style="padding:5px 10px;font-size:12px;">{len(items)}只</td>'
-                f'<td style="padding:5px 10px;font-size:12px;color:#555;">{names}</td>'
-                f'</tr>'
-            )
+            # 信号类型行
+            signal_rows += f'<tr><td colspan="2" style="padding:6px 10px;border-bottom:1px solid #f0f0f0;background:{bg};color:{color};font-weight:bold;font-size:12px;">{sig_type} · {len(items)}只</td></tr>'
+            # 每个标的单独一行
+            for r in items:
+                signal_rows += f'<tr><td width="8" style="border-bottom:1px solid #f5f5f5;"></td><td style="padding:4px 10px;border-bottom:1px solid #f5f5f5;font-size:12px;color:#555;">{r["symbol"]} {r["name"]}</td></tr>'
 
     signal_table = wrap_table(
         section_header("📡", f"最近{SIGNAL_DAYS}日信号"),
-        f'<thead><tr><th {th}>日期</th><th {th}>信号类型</th><th {thc}>数量</th><th {th}>标的</th></tr></thead>'
         f'<tbody>{signal_rows}</tbody>'
     )
 
-    # ── 板块状态表格 ──
-    sorted_sec   = sorted(sector_state.items(), key=lambda x: x[1]["pct"], reverse=True)
-    sector_rows  = ""
+    # ── 板块表格 ──
+    sorted_sec  = sorted(sector_state.items(), key=lambda x: x[1]["pct"], reverse=True)
+    sector_rows = ""
     for sec, stat in sorted_sec:
-        st_trend = sector_trend.get(sec, {})
+        st_trend  = sector_trend.get(sec, {})
         direction = st_trend.get("direction", "-")
         count     = st_trend.get("count", stat.get("total", 0))
-        bg  = pct_bg(stat["pct"])
-        col = pct_color(stat["pct"])
-        dc  = dir_color(direction)
+        bg        = pct_bg(stat["pct"])
+        col       = pct_color(stat["pct"])
+        dc        = dir_color(direction)
         sector_rows += (
             f'<tr>'
-            f'<td style="padding:6px 10px;font-weight:bold;">{sec}</td>'
-            f'<td style="padding:6px 10px;text-align:center;background:{bg};color:{col};font-weight:bold;">{stat["pct"]}%</td>'
-            f'<td style="padding:6px 10px;text-align:center;font-weight:bold;color:{dc};">{direction}</td>'
-            f'<td style="padding:6px 10px;text-align:center;color:#888;">{stat["bull"]}/{count}只</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;font-weight:bold;">{sec}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;background:{bg};color:{col};font-weight:bold;">{stat["pct"]}%</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:{dc};">{direction}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:#888;font-size:12px;">{stat["bull"]}/{count}</td>'
             f'</tr>'
         )
 
     sector_table = wrap_table(
-        section_header("🏭", "板块多头比例（当前，5日方向）"),
-        f'<thead><tr><th {th}>板块</th><th {thc}>多头比例</th><th {thc}>5日方向</th><th {thc}>ETF数</th></tr></thead>'
+        section_header("🏭", "板块多头比例"),
+        f'<thead><tr>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:left;border-bottom:1px solid #ddd;">板块</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">多头%</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">5日</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">ETF</th>'
+        f'</tr></thead>'
         f'<tbody>{sector_rows}</tbody>'
     )
 
-    # ── 60天趋势表格（每5日采样）──
-    sampled     = trend_series[::5]
+    # ── 60天趋势表格 ──
+    sampled    = trend_series[::5]
     if trend_series and (not sampled or sampled[-1] != trend_series[-1]):
         sampled.append(trend_series[-1])
-    trend_rows  = ""
+    trend_rows = ""
     for i, pt in enumerate(sampled):
-        bg  = "#ffffff" if i % 2 == 0 else "#f9f9f9"
-        col = pct_color(pt["bull_pct"])
-        bgc = pct_bg(pt["bull_pct"])
+        row_bg = "#ffffff" if i % 2 == 0 else "#f9f9f9"
+        col    = pct_color(pt["bull_pct"])
+        bgc    = pct_bg(pt["bull_pct"])
         trend_rows += (
-            f'<tr style="background:{bg};">'
-            f'<td style="padding:5px 10px;">{pt["date"]}</td>'
-            f'<td style="padding:5px 10px;text-align:center;background:{bgc};color:{col};font-weight:bold;">{pt["bull_pct"]}%</td>'
-            f'<td style="padding:5px 10px;text-align:center;color:#1a7340;">{pt["bull"]}</td>'
-            f'<td style="padding:5px 10px;text-align:center;color:#856404;">{pt["adj"]}</td>'
-            f'<td style="padding:5px 10px;text-align:center;color:#922b21;">{pt["bear"]}</td>'
+            f'<tr style="background:{row_bg};">'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">{pt["date"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;background:{bgc};color:{col};font-weight:bold;">{pt["bull_pct"]}%</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:#c0392b;font-size:12px;">{pt["bull"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:#856404;font-size:12px;">{pt["adj"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;color:#1a56db;font-size:12px;">{pt["bear"]}</td>'
             f'</tr>'
         )
 
     trend_table = wrap_table(
         section_header("📈", "60天多头比例趋势"),
-        f'<thead><tr><th {th}>日期</th><th {thc}>多头占比</th><th {thc}>🟢多头</th><th {thc}>🟡调整</th><th {thc}>🔴空头</th></tr></thead>'
+        f'<thead><tr>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:left;border-bottom:1px solid #ddd;">日期</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">多头%</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">多头</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">调整</th>'
+        f'<th style="padding:7px 10px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;">空头</th>'
+        f'</tr></thead>'
         f'<tbody>{trend_rows}</tbody>'
     )
 
-    # ── 指数和个股表格 ──
+    # ── 指数和个股表格：4列，去掉均线距离 ──
     def index_stock_rows(layer):
         rows = ""
         for r in results:
             if r["layer"] != layer: continue
             snap = r["snapshots"][-1] if r["snapshots"] else None
             if not snap: continue
-            t_label  = trend_emoji(snap["trend"])
-            t_style  = trend_cell_style(snap["trend"])
-            st_d     = f'{snap["st_dist"]:+.1f}%' if snap["st_dist"] is not None else "-"
-            st_col   = "#c0392b" if (snap.get("st_dist") or 0) > 0 else "#1a56db"
-            ma_d     = f'{snap["ma_dist"]:+.1f}%' if snap["ma_dist"] is not None else "-"
+            t_label = trend_emoji(snap["trend"])
+            t_bg    = "#fdecea" if snap["trend"] == 1 else "#e8f0fe"
+            t_col   = "#c0392b" if snap["trend"] == 1 else "#1a56db"
+            st_d    = f'{snap["st_dist"]:+.1f}%' if snap["st_dist"] is not None else "-"
+            st_col  = "#c0392b" if (snap.get("st_dist") or 0) > 0 else "#1a56db"
             rows += (
                 f'<tr>'
-                f'<td style="padding:6px 10px;font-weight:bold;white-space:nowrap;">{r["symbol"]}</td>'
-                f'<td style="padding:6px 10px;color:#555;">{r["name"]}</td>'
-                f'<td {t_style}>{t_label}</td>'
-                f'<td style="padding:6px 10px;text-align:right;font-weight:bold;color:{st_col};">{st_d}</td>'
-                f'<td style="padding:6px 10px;text-align:right;color:#888;">{ma_d}</td>'
+                f'<td style="padding:7px 8px;border-bottom:1px solid #eee;font-weight:bold;font-size:12px;white-space:nowrap;">{r["symbol"]}</td>'
+                f'<td style="padding:7px 8px;border-bottom:1px solid #eee;color:#555;font-size:12px;">{r["name"]}</td>'
+                f'<td style="padding:7px 8px;border-bottom:1px solid #eee;text-align:center;background:{t_bg};color:{t_col};font-weight:bold;font-size:12px;white-space:nowrap;">{t_label}</td>'
+                f'<td style="padding:7px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;color:{st_col};font-size:12px;white-space:nowrap;">{st_d}</td>'
                 f'</tr>'
             )
         return rows
 
+    th_style = 'style="padding:7px 8px;background:#f5f5f5;font-size:12px;color:#666;text-align:left;border-bottom:1px solid #ddd;"'
+    thc_style = 'style="padding:7px 8px;background:#f5f5f5;font-size:12px;color:#666;text-align:center;border-bottom:1px solid #ddd;"'
+    thr_style = 'style="padding:7px 8px;background:#f5f5f5;font-size:12px;color:#666;text-align:right;border-bottom:1px solid #ddd;"'
+
     index_table = wrap_table(
         section_header("📌", "指数状态"),
-        f'<thead><tr><th {th}>代码</th><th {th}>名称</th><th {thc}>趋势</th><th {thc}>趋势线距离</th><th {thc}>均线距离</th></tr></thead>'
+        f'<thead><tr><th {th_style}>代码</th><th {th_style}>名称</th><th {thc_style}>趋势</th><th {thr_style}>趋势线</th></tr></thead>'
         f'<tbody>{index_stock_rows("index")}</tbody>'
     )
 
     stock_table = wrap_table(
         section_header("⭐", "核心个股状态"),
-        f'<thead><tr><th {th}>代码</th><th {th}>名称</th><th {thc}>趋势</th><th {thc}>趋势线距离</th><th {thc}>均线距离</th></tr></thead>'
+        f'<thead><tr><th {th_style}>代码</th><th {th_style}>名称</th><th {thc_style}>趋势</th><th {thr_style}>趋势线</th></tr></thead>'
         f'<tbody>{index_stock_rows("stock")}</tbody>'
     )
 
-    return f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:720px;margin:0 auto;padding:16px;color:#222;">
-      <h2 style="margin:0 0 4px;font-size:18px;">📈 A股市场趋势报告</h2>
-      <p style="margin:0 0 20px;color:#888;font-size:13px;">北京时间 {report_date}</p>
-      {ai_block}
-      {state_cards}
-      {signal_table}
-      {sector_table}
-      {trend_table}
-      {index_table}
-      {stock_table}
-    </div>"""
+    return f"""<table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#222;padding:16px;">
+      <tr><td>
+        <h2 style="margin:0 0 4px;font-size:17px;">📈 A股市场趋势报告</h2>
+        <p style="margin:0 0 16px;color:#888;font-size:12px;">北京时间 {report_date}</p>
+        {ai_block}
+        {state_cards}
+        {signal_table}
+        {sector_table}
+        {trend_table}
+        {index_table}
+        {stock_table}
+      </td></tr>
+    </table>
+    </td></tr></table>"""
 
 # ─── 发邮件 ────────────────────────────────────────────────────────────────
 def send_email(html, report_date):
