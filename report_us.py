@@ -20,8 +20,8 @@ from engine import (
 )
 
 # ─── 配置 ──────────────────────────────────────────────────────────────────
-EMAIL_TO   = ["garyfocus@hotmail.com", "hua@ceic.ca"]
-EMAIL_FROM = "美股趋势报告 <gary@ceic.ca>"
+EMAIL_TO   = ["garyfocus@hotmail.com"]
+EMAIL_FROM = "美股趋势报告 <messenger@ceic.ca>"
 SIGNAL_DAYS = 3   # 信号回看天数：今天/昨天/前天
 TREND_DAYS  = 60  # 趋势回看天数
 
@@ -406,7 +406,7 @@ def main():
 
     # 2. 取最近3个交易日的日期
     all_dates    = sorted({s["date"] for r in results for s in r["snapshots"]})
-    signal_dates = all_dates[-SIGNAL_DAYS:] if len(all_dates) >= SIGNAL_DAYS else all_dates
+    signal_dates = list(reversed(all_dates[-SIGNAL_DAYS:])) if len(all_dates) >= SIGNAL_DAYS else list(reversed(all_dates))
 
     # 3. 按日期计算信号
     signals_by_date = {date: calc_signals(results, date) for date in signal_dates}
