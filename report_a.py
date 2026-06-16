@@ -57,7 +57,7 @@ def dir_color(d):
 def build_prompt(report_date, signal_dates, signals_by_date,
                  current_state, sector_state, trend_series, sector_trend, results):
     lines = []
-    lines.append(f"以下是A股市场截至 {report_date} 的Supertrend技术面扫描数据。")
+    lines.append(f"以下是A股市场截至 {report_date} 的技术面扫描数据。")
     lines.append("请根据数据给出市场分析和投资建议，重点关注趋势方向和板块轮动。")
     lines.append("")
 
@@ -387,7 +387,7 @@ def send_email(html, report_date):
 def main():
     now         = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
     report_date = now.strftime("%Y-%m-%d")
-    print(f"[开始] 美股报告 {report_date} 共{len(WATCHLIST_A)}只")
+    print(f"[开始] A股报告 {report_date} 共{len(WATCHLIST_A)}只")
 
     # 1. 扫描所有标的
     results = []
