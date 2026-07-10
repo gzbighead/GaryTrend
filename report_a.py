@@ -131,6 +131,7 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 哪个板块的变化最值得警惕或关注，为什么")
     lines.append("")
     lines.append("3. 关键标的的位置")
+    lines.append("   - 列举关键标的的最新报价，包括关键指数，重点关注个股，以确保资料时效性")
     lines.append("   - 指数距趋势线的距离意味着什么（多空博弈的边界在哪）")
     lines.append("   - 个股中有无与板块背离的强势或弱势标的")
     lines.append("")
