@@ -250,16 +250,15 @@ def calc_trend_series(results, days=60):
     # 取最近days天
     recent_dates = all_dates[-days:] if len(all_dates) >= days else all_dates
 
-    # 期望的最大total（用前几天的数据估算，避免最后一天数据不完整）
     total_results = len(results)
-    threshold     = total_results * 0.8  # 至少80%标的有数据才算完整
+    threshold     = total_results * 0.5  # 至少50%标的有数据才纳入
 
     series = []
     for date in recent_dates:
         state = calc_state(results, date)
         t     = state["total"]
         if t < threshold:
-            continue  # 数据不完整，跳过此日期
+            continue
         pct = round(state["bull"] / t * 100) if t else 0
         series.append({
             "date":     date,
@@ -304,19 +303,15 @@ def calc_sector_trend(results, days=60):
             series.append({"date": date, "pct": pct, "bull": bull, "total": total})
 
         count     = len(sec_results)
-        # 计算5天变化方向：用最近5天的首尾对比，且只在数据足够时计算
-        last_pct   = series[-1]["pct"]  if series else 0
-        prev_pct   = series[-5]["pct"]  if len(series) >= 5 else (series[0]["pct"] if series else 0)
-        last_total = series[-1]["total"] if series else 0
-        if last_total < count * 0.8:
-            direction = "→"
-        else:
-            delta = last_pct - prev_pct
-            if   delta >= 10: direction = "↑↑"
-            elif delta >= 4:  direction = "↑"
-            elif delta <= -10:direction = "↓↓"
-            elif delta <= -4: direction = "↓"
-            else:             direction = "→"
+        # 计算5天变化方向
+        last_pct  = series[-1]["pct"] if series else 0
+        prev_pct  = series[-5]["pct"] if len(series) >= 5 else (series[0]["pct"] if series else 0)
+        delta     = last_pct - prev_pct
+        if   delta >= 10: direction = "↑↑"
+        elif delta >= 4:  direction = "↑"
+        elif delta <= -10:direction = "↓↓"
+        elif delta <= -4: direction = "↓"
+        else:             direction = "→"
         out[sec] = {"series": series, "direction": direction, "count": count}
 
     return out
