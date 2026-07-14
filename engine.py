@@ -303,13 +303,13 @@ def calc_sector_trend(results, days=60):
             pct = round(bull / total * 100) if total else 0
             series.append({"date": date, "pct": pct, "bull": bull, "total": total})
 
+        count     = len(sec_results)
         # 计算5天变化方向：用最近5天的首尾对比，且只在数据足够时计算
-        last_pct  = series[-1]["pct"]  if series else 0
-        prev_pct  = series[-5]["pct"]  if len(series) >= 5 else (series[0]["pct"] if series else 0)
-        # 只有最后一天total达到板块ETF总数80%以上才认为数据可信
+        last_pct   = series[-1]["pct"]  if series else 0
+        prev_pct   = series[-5]["pct"]  if len(series) >= 5 else (series[0]["pct"] if series else 0)
         last_total = series[-1]["total"] if series else 0
         if last_total < count * 0.8:
-            direction = "→"  # 数据不足，不判断方向
+            direction = "→"
         else:
             delta = last_pct - prev_pct
             if   delta >= 10: direction = "↑↑"
@@ -317,8 +317,6 @@ def calc_sector_trend(results, days=60):
             elif delta <= -10:direction = "↓↓"
             elif delta <= -4: direction = "↓"
             else:             direction = "→"
-
-        count = len(sec_results)
         out[sec] = {"series": series, "direction": direction, "count": count}
 
     return out
