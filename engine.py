@@ -238,6 +238,7 @@ def calc_signals(results, date):
 def calc_trend_series(results, days=60):
     """
     取最近days个交易日，每天计算多头占比
+    只保留数据完整的日期（total >= 所有结果数量的80%）
     返回: [{date, bull_pct, bull, adj, bear, total}, ...]
     """
     # 收集所有日期
@@ -249,11 +250,17 @@ def calc_trend_series(results, days=60):
     # 取最近days天
     recent_dates = all_dates[-days:] if len(all_dates) >= days else all_dates
 
+    # 期望的最大total（用前几天的数据估算，避免最后一天数据不完整）
+    total_results = len(results)
+    threshold     = total_results * 0.8  # 至少80%标的有数据才算完整
+
     series = []
     for date in recent_dates:
         state = calc_state(results, date)
         t     = state["total"]
-        pct   = round(state["bull"] / t * 100) if t else 0
+        if t < threshold:
+            continue  # 数据不完整，跳过此日期
+        pct = round(state["bull"] / t * 100) if t else 0
         series.append({
             "date":     date,
             "bull_pct": pct,
@@ -296,19 +303,20 @@ def calc_sector_trend(results, days=60):
             pct = round(bull / total * 100) if total else 0
             series.append({"date": date, "pct": pct, "bull": bull, "total": total})
 
-        # 计算5天变化方向
-        if len(series) >= 5:
-            delta = series[-1]["pct"] - series[-5]["pct"]
-        elif len(series) >= 2:
-            delta = series[-1]["pct"] - series[0]["pct"]
+        # 计算5天变化方向：用最近5天的首尾对比，且只在数据足够时计算
+        last_pct  = series[-1]["pct"]  if series else 0
+        prev_pct  = series[-5]["pct"]  if len(series) >= 5 else (series[0]["pct"] if series else 0)
+        # 只有最后一天total达到板块ETF总数80%以上才认为数据可信
+        last_total = series[-1]["total"] if series else 0
+        if last_total < count * 0.8:
+            direction = "→"  # 数据不足，不判断方向
         else:
-            delta = 0
-
-        if   delta >= 15: direction = "↑↑"
-        elif delta >= 5:  direction = "↑"
-        elif delta <= -15:direction = "↓↓"
-        elif delta <= -5: direction = "↓"
-        else:             direction = "→"
+            delta = last_pct - prev_pct
+            if   delta >= 10: direction = "↑↑"
+            elif delta >= 4:  direction = "↑"
+            elif delta <= -10:direction = "↓↓"
+            elif delta <= -4: direction = "↓"
+            else:             direction = "→"
 
         count = len(sec_results)
         out[sec] = {"series": series, "direction": direction, "count": count}
