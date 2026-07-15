@@ -271,17 +271,11 @@ def calc_trend_series(results, days=60):
 def calc_sector_trend(results, days=60):
     """
     取最近days个交易日，每天计算各板块多头比例
-    返回: {板块名: [{date, pct}, ...]}
-    并计算每个板块的周变化方向
+    只统计该板块内实际有数据的ETF，保证比例准确
+    方向箭头比较最新交易日 vs 5个交易日前
+    返回: {板块名: {series, direction, count}}
     """
-    all_dates = sorted({
-        s["date"]
-        for r in results
-        for s in r["snapshots"]
-    })
-    recent_dates = all_dates[-days:] if len(all_dates) >= days else all_dates
-
-    # 板块列表
+    # 用每个板块自己的ETF日期集合，而不是所有标的的日期
     sector_names = sorted({
         r["sector"]
         for r in results
@@ -291,27 +285,50 @@ def calc_sector_trend(results, days=60):
     out = {}
     for sec in sector_names:
         sec_results = [r for r in results if r["sector"] == sec]
+        count       = len(sec_results)
+
+        # 收集该板块所有ETF出现过的日期
+        sec_dates = sorted({
+            s["date"]
+            for r in sec_results
+            for s in r["snapshots"]
+        })
+        recent_dates = sec_dates[-days:] if len(sec_dates) >= days else sec_dates
+
         series = []
         for date in recent_dates:
             total = bull = 0
             for r in sec_results:
                 snap = next((s for s in r["snapshots"] if s["date"] == date), None)
-                if not snap: continue
+                if not snap:
+                    continue
                 total += 1
-                if snap["trend"] == 1: bull += 1
-            pct = round(bull / total * 100) if total else 0
+                if snap["trend"] == 1:
+                    bull += 1
+            # 只有至少一半的板块ETF有数据才纳入，避免偏差
+            if total < max(1, count * 0.5):
+                continue
+            pct = round(bull / total * 100)
             series.append({"date": date, "pct": pct, "bull": bull, "total": total})
 
-        count     = len(sec_results)
-        # 计算5天变化方向
-        last_pct  = series[-1]["pct"] if series else 0
-        prev_pct  = series[-5]["pct"] if len(series) >= 5 else (series[0]["pct"] if series else 0)
-        delta     = last_pct - prev_pct
-        if   delta >= 10: direction = "↑↑"
-        elif delta >= 4:  direction = "↑"
-        elif delta <= -10:direction = "↓↓"
-        elif delta <= -4: direction = "↓"
-        else:             direction = "→"
+        # 计算方向：当天多头比例 vs 最近10日有效均值
+        if not series:
+            direction = "→"
+        else:
+            last_pct  = series[-1]["pct"]
+            # 取最近10个有效数据点（不含今天）做均值
+            prev_pts  = series[-11:-1] if len(series) >= 2 else []
+            if len(prev_pts) >= 3:
+                ma10  = sum(p["pct"] for p in prev_pts) / len(prev_pts)
+                delta = last_pct - ma10
+                if   delta >= 10: direction = "↑↑"
+                elif delta >= 4:  direction = "↑"
+                elif delta <= -10:direction = "↓↓"
+                elif delta <= -4: direction = "↓"
+                else:             direction = "→"
+            else:
+                direction = "→"  # 有效数据不足，不判断方向
+
         out[sec] = {"series": series, "direction": direction, "count": count}
 
     return out
