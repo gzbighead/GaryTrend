@@ -405,3 +405,221 @@ if __name__ == "__main__":
     print(f"总共: {len(STOCKS_US)}只")
     for sec, count in sorted(sectors.items(), key=lambda x: -x[1]):
         print(f"  {sec}: {count}只")
+
+# ─── 纳指100额外成分股（不在SP500里的）──────────────────────────────────
+NDX100_EXTRA = [
+    ("ASML",  "ASML Holding",              "Information Technology"),
+    ("ADP",   "ADP",                       "Industrials"),
+    ("ADI",   "Analog Devices",            "Information Technology"),
+    ("MU",    "Micron Technology",         "Information Technology"),
+    ("CEG",   "Constellation Energy",      "Utilities"),
+    ("MAR",   "Marriott",                  "Consumer Discretionary"),
+    ("PCAR",  "PACCAR",                    "Industrials"),
+    ("MNST",  "Monster Beverage",          "Consumer Staples"),
+    ("KDP",   "Keurig Dr Pepper",          "Consumer Staples"),
+    ("AZN",   "AstraZeneca",               "Health Care"),
+    ("CPRT",  "Copart",                    "Industrials"),
+    ("TTD",   "The Trade Desk",            "Communication Services"),
+    ("NXPI",  "NXP Semiconductors",        "Information Technology"),
+    ("PAYX",  "Paychex",                   "Industrials"),
+    ("ODFL",  "Old Dominion Freight",      "Industrials"),
+    ("ON",    "ON Semiconductor",          "Information Technology"),
+    ("GFS",   "GlobalFoundries",           "Information Technology"),
+    ("MCHP",  "Microchip Technology",      "Information Technology"),
+    ("CCEP",  "Coca-Cola Europacific",     "Consumer Staples"),
+    ("CSGP",  "CoStar Group",              "Real Estate"),
+    ("ILMN",  "Illumina",                  "Health Care"),
+    ("DLTR",  "Dollar Tree",               "Consumer Staples"),
+    ("LULU",  "Lululemon",                 "Consumer Discretionary"),
+    ("PDD",   "PDD Holdings",              "Consumer Discretionary"),
+]
+
+# ─── 罗素2000代表性成长股 ─────────────────────────────────────────────────
+RUSSELL2000_SAMPLE = [
+    # Information Technology
+    ("DUOL",  "Duolingo",                  "Information Technology"),
+    ("CFLT",  "Confluent",                 "Information Technology"),
+    ("GTLB",  "GitLab",                    "Information Technology"),
+    ("PATH",  "UiPath",                    "Information Technology"),
+    ("IONQ",  "IonQ",                      "Information Technology"),
+    ("RXRX",  "Recursion Pharma",          "Information Technology"),
+    ("AMBA",  "Ambarella",                 "Information Technology"),
+    ("WOLF",  "Wolfspeed",                 "Information Technology"),
+    ("ACLS",  "Axcelis Technologies",      "Information Technology"),
+    ("ONTO",  "Onto Innovation",           "Information Technology"),
+    ("OLED",  "Universal Display",         "Information Technology"),
+    ("MKSI",  "MKS Instruments",           "Information Technology"),
+    ("FORM",  "FormFactor",                "Information Technology"),
+    ("COHU",  "Cohu",                      "Information Technology"),
+    ("VICR",  "Vicor",                     "Information Technology"),
+    ("AEIS",  "Advanced Energy",           "Information Technology"),
+    ("LSCC",  "Lattice Semiconductor",     "Information Technology"),
+    ("UCTT",  "Ultra Clean Holdings",      "Information Technology"),
+    ("ATEN",  "A10 Networks",              "Information Technology"),
+    ("BAND",  "Bandwidth",                 "Information Technology"),
+    ("GILT",  "Gilat Satellite",           "Information Technology"),
+    ("POWI",  "Power Integrations",        "Information Technology"),
+    ("SLAB",  "Silicon Laboratories",      "Information Technology"),
+    ("SMTC",  "Semtech",                   "Information Technology"),
+    ("SITM",  "SiTime",                    "Information Technology"),
+    ("OSIS",  "OSI Systems",               "Information Technology"),
+    ("NTCT",  "NetScout Systems",          "Information Technology"),
+    ("LVOX",  "LiveVox Holdings",          "Information Technology"),
+    ("RELY",  "Remitly Global",            "Information Technology"),
+    ("FIVN",  "Five9",                     "Information Technology"),
+    # Health Care
+    ("RVMD",  "Revolution Medicines",      "Health Care"),
+    ("ARWR",  "Arrowhead Pharma",          "Health Care"),
+    ("NUVL",  "Nuvalent",                  "Health Care"),
+    ("TMDX",  "TransMedics Group",         "Health Care"),
+    ("PRAX",  "Praxis Precision Medicine", "Health Care"),
+    ("ITCI",  "Intra-Cellular Therapies",  "Health Care"),
+    ("RCKT",  "Rocket Pharma",             "Health Care"),
+    ("ACAD",  "ACADIA Pharma",             "Health Care"),
+    ("FOLD",  "Amicus Therapeutics",       "Health Care"),
+    ("KROS",  "Keros Therapeutics",        "Health Care"),
+    ("AGIO",  "Agios Pharma",              "Health Care"),
+    ("PCVX",  "Vaxcyte",                   "Health Care"),
+    ("INVA",  "Innoviva",                  "Health Care"),
+    ("HALO",  "Halozyme Therapeutics",     "Health Care"),
+    ("RARE",  "Ultragenyx Pharma",         "Health Care"),
+    ("KRYS",  "Krystal Biotech",           "Health Care"),
+    ("CLDX",  "Celldex Therapeutics",      "Health Care"),
+    ("FATE",  "Fate Therapeutics",         "Health Care"),
+    ("IMVT",  "Immunovant",                "Health Care"),
+    ("KYMR",  "Kymera Therapeutics",       "Health Care"),
+    ("DNLI",  "Denali Therapeutics",       "Health Care"),
+    ("BEAM",  "Beam Therapeutics",         "Health Care"),
+    ("EDIT",  "Editas Medicine",           "Health Care"),
+    ("NTLA",  "Intellia Therapeutics",     "Health Care"),
+    ("CRSP",  "CRISPR Therapeutics",       "Health Care"),
+    ("VERV",  "Verve Therapeutics",        "Health Care"),
+    ("GRPH",  "Graphite Bio",              "Health Care"),
+    ("KDNY",  "Chinook Therapeutics",      "Health Care"),
+    ("TPST",  "Tempest Therapeutics",      "Health Care"),
+    ("HOOK",  "Hookipa Pharma",            "Health Care"),
+    # Industrials / Aerospace
+    ("KTOS",  "Kratos Defense",            "Industrials"),
+    ("RKLB",  "Rocket Lab",                "Industrials"),
+    ("ACHR",  "Archer Aviation",           "Industrials"),
+    ("JOBY",  "Joby Aviation",             "Industrials"),
+    ("LUNR",  "Intuitive Machines",        "Industrials"),
+    ("ASTS",  "AST SpaceMobile",           "Industrials"),
+    ("RDW",   "Redwire",                   "Industrials"),
+    ("SATL",  "Satellogic",                "Industrials"),
+    ("SPIR",  "Spire Global",              "Industrials"),
+    ("MNTS",  "Momentus",                  "Industrials"),
+    ("VORB",  "Virgin Orbit",              "Industrials"),
+    ("BWXT",  "BWX Technologies",          "Industrials"),
+    ("HURN",  "Huron Consulting",          "Industrials"),
+    ("POWL",  "Powell Industries",         "Industrials"),
+    ("ATRO",  "Astronics",                 "Industrials"),
+    ("MVIS",  "MicroVision",               "Industrials"),
+    ("PAYS",  "Paysign",                   "Industrials"),
+    ("ARQT",  "Arcutis Biotherapeutics",   "Industrials"),
+    # Consumer Discretionary
+    ("CELH",  "Celsius Holdings",          "Consumer Discretionary"),
+    ("BROS",  "Dutch Bros",                "Consumer Discretionary"),
+    ("WING",  "Wingstop",                  "Consumer Discretionary"),
+    ("CAVA",  "CAVA Group",                "Consumer Discretionary"),
+    ("BOOT",  "Boot Barn",                 "Consumer Discretionary"),
+    ("YETI",  "YETI Holdings",             "Consumer Discretionary"),
+    ("SG",    "Sweetgreen",                "Consumer Discretionary"),
+    ("XPOF",  "Xponential Fitness",        "Consumer Discretionary"),
+    ("MODG",  "Acushnet Holdings",         "Consumer Discretionary"),
+    ("GSHD",  "Goosehead Insurance",       "Consumer Discretionary"),
+    ("PLAY",  "Dave & Buster's",           "Consumer Discretionary"),
+    ("SHAK",  "Shake Shack",               "Consumer Discretionary"),
+    ("TXRH",  "Texas Roadhouse",           "Consumer Discretionary"),
+    ("CAKE",  "Cheesecake Factory",        "Consumer Discretionary"),
+    ("JACK",  "Jack in the Box",           "Consumer Discretionary"),
+    ("DENN",  "Denny's",                   "Consumer Discretionary"),
+    ("BJ",    "BJ's Wholesale",            "Consumer Discretionary"),
+    ("PRPL",  "Purple Innovation",         "Consumer Discretionary"),
+    ("LOVE",  "Lovesac",                   "Consumer Discretionary"),
+    ("GIII",  "G-III Apparel",             "Consumer Discretionary"),
+    # Financials
+    ("LPLA",  "LPL Financial",             "Financials"),
+    ("COOP",  "Mr. Cooper Group",          "Financials"),
+    ("HASI",  "HA Sustainable Infra",      "Financials"),
+    ("UWMC",  "UWM Holdings",              "Financials"),
+    ("PFBC",  "Preferred Bank",            "Financials"),
+    ("OPEN",  "Opendoor Technologies",     "Financials"),
+    ("GHLD",  "Guild Holdings",            "Financials"),
+    ("NRDS",  "NerdWallet",                "Financials"),
+    ("CURO",  "CURO Group",                "Financials"),
+    ("ENVA",  "Enova International",       "Financials"),
+    ("RM",    "Regional Management",       "Financials"),
+    ("WRLD",  "World Acceptance",          "Financials"),
+    ("FCNCA", "First Citizens BancShares", "Financials"),
+    ("FIBK",  "First Interstate BancSystem","Financials"),
+    ("HTLF",  "Heartland Financial",       "Financials"),
+    # Energy
+    ("CIVI",  "Civitas Resources",         "Energy"),
+    ("VTLE",  "Vital Energy",              "Energy"),
+    ("SOC",   "Sable Offshore",            "Energy"),
+    ("GRNT",  "Granite Ridge Resources",   "Energy"),
+    ("MNRL",  "Brigham Minerals",          "Energy"),
+    ("NGAS",  "Genie Energy",              "Energy"),
+    ("ESTE",  "Earthstone Energy",         "Energy"),
+    ("BATL",  "Battalion Oil",             "Energy"),
+    # Materials
+    ("MP",    "MP Materials",              "Materials"),
+    ("UUUU",  "Energy Fuels",              "Materials"),
+    ("NXE",   "NexGen Energy",             "Materials"),
+    ("DNN",   "Denison Mines",             "Materials"),
+    ("PLAB",  "Photronics",                "Materials"),
+    ("ASIX",  "AdvanSix",                  "Materials"),
+    ("IOSP",  "Innospec",                  "Materials"),
+    ("TREC",  "Trecora Resources",         "Materials"),
+    # Real Estate
+    ("STAG",  "STAG Industrial",           "Real Estate"),
+    ("COLD",  "Americold Realty",          "Real Estate"),
+    ("IIPR",  "Innovative Industrial",     "Real Estate"),
+    ("GMRE",  "Global Medical REIT",       "Real Estate"),
+    ("NTST",  "NETSTREIT",                 "Real Estate"),
+    ("EPRT",  "Essential Properties",      "Real Estate"),
+    ("ALEX",  "Alexander & Baldwin",       "Real Estate"),
+    # Utilities
+    ("NOVA",  "Sunnova Energy",            "Utilities"),
+    ("RUN",   "Sunrun",                    "Utilities"),
+    ("ARRY",  "Array Technologies",        "Utilities"),
+    ("SHLS",  "Shoals Technologies",       "Utilities"),
+    ("STEM",  "Stem Inc",                  "Utilities"),
+    ("GPRE",  "Green Plains",              "Utilities"),
+    ("FLNC",  "Fluence Energy",            "Utilities"),
+]
+
+# ─── 合并所有个股（去重）─────────────────────────────────────────────────
+def _build_full_list():
+    seen = set()
+    result = []
+    for sym, name, sec in STOCKS_US + NDX100_EXTRA + RUSSELL2000_SAMPLE:
+        if sym not in seen:
+            seen.add(sym)
+            result.append((sym, name, sec))
+    return result
+
+STOCKS_US_FULL = _build_full_list()
+
+# ─── 查询函数（更新为使用完整列表）──────────────────────────────────────
+def get_stocks_by_gics(sector_gics):
+    return {
+        sym: {"name": name, "sector": sec}
+        for sym, name, sec in STOCKS_US_FULL
+        if sec == sector_gics
+    }
+
+def get_stocks_by_etf_sector(etf_sector):
+    gics_list = SECTOR_MAP.get(etf_sector, [])
+    result = {}
+    for gics in gics_list:
+        result.update(get_stocks_by_gics(gics))
+    return result
+
+if __name__ == "__main__":
+    from collections import Counter
+    sectors = Counter(sec for _, _, sec in STOCKS_US_FULL)
+    print(f"总共: {len(STOCKS_US_FULL)}只")
+    for sec, count in sorted(sectors.items(), key=lambda x: -x[1]):
+        print(f"  {sec}: {count}只")
