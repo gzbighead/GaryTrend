@@ -377,7 +377,7 @@ def send_email(html, report_date):
         json={
             "from":    EMAIL_FROM,
             "to":      EMAIL_TO,
-            "subject": f"A股趋势报告 {report_date}",
+            "subject": f"投资分析 - A股趋势报告 {report_date}",
             "html":    html,
         },
     )
