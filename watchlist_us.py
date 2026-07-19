@@ -289,7 +289,7 @@ SECTOR_KEYWORDS_US = {
     "医疗医药": ["医疗", "医药", "生物科技", "Health", "Biotech", "Pharma",
                  "Medical", "基因", "Gene", "器械", "Device", "保险ETF-iShares"],
     "金融":     ["金融", "银行", "Financial", "Bank", "保险", "Insurance", "证券", "Broker"],
-    "能源":     ["能源", "石油", "Energy", "Oil", "天然气", "Gas", "原油"],
+    "能源":     ["能源", "石油", "Energy", "Oil", "油服", "油气", "天然气", "Gas", "原油"],
     "消费":     ["消费", "Consumer", "零售", "Retail", "房屋建筑", "Homebuilder",
                  "旅游", "Travel", "航空ETF"],
     "工业":     ["工业", "运输", "Industrial", "Transport", "基础设施", "Infrastructure",
@@ -304,6 +304,7 @@ SECTOR_KEYWORDS_US = {
                  "公司债", "Corporate", "市政", "Municipal", "通胀保护"],
     "房地产":   ["房地产", "Real Estate", "REIT", "不动产", "住宅", "Residential"],
     "公用事业": ["公用", "电信", "Utility", "Telecom", "通信服务", "Communication"],
+    "国防航天": ["航空航天", "国防", "Defense", "Aerospace", "Aeronautics"],
     "恐慌":     ["恐慌", "波动", "Volatility", "VIX"],
     "杠杆":     ["倍做多", "倍做空", "三倍", "两倍", "2倍", "3x", "2x"],
 }
