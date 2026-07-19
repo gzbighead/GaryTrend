@@ -22,7 +22,7 @@ from engine import (
 )
 
 # ─── 配置 ──────────────────────────────────────────────────────────────────
-EMAIL_TO   = ["garyfocus@hotmail.com", "hua@ceic.ca"]
+EMAIL_TO   = ["garyfocus@hotmail.com"]
 EMAIL_FROM = "美股龙头捕捉 <gary@ceic.ca>"
 
 ST_PERIOD     = 10
