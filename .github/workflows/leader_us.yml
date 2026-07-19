@@ -4,6 +4,14 @@ on:
   repository_dispatch:
     types: [run_leader_us]
 
+  # GitHub 页面手动触发
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "数据周期 (e.g. 2y / 1y / 6mo)"
+        required: false
+        default: "5y"
+
 jobs:
   leader:
     runs-on: ubuntu-latest
