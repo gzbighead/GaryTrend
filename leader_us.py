@@ -305,7 +305,7 @@ def send_email(html, report_date, leader_count):
     if not api_key:
         print("[邮件] 未设置RESEND_API_KEY")
         return
-    subject = f"美股龙头候选 {report_date}" + (f" · {leader_count}只" if leader_count else " · 今日无信号")
+    subject = f"投资分析 - 美股龙头候选 {report_date}" + (f" · {leader_count}只" if leader_count else " · 今日无信号")
     res = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
