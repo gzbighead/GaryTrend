@@ -23,7 +23,7 @@ from engine import (
 
 # ─── 配置 ──────────────────────────────────────────────────────────────────
 EMAIL_TO   = ["garyfocus@hotmail.com"]
-EMAIL_FROM = "趋势分析 - 美股龙头捕捉 <gary@ceic.ca>"
+EMAIL_FROM = "美股龙头捕捉 <gary@ceic.ca>"
 
 ST_PERIOD     = 10
 ST_MULTIPLIER = 3.0
@@ -265,7 +265,7 @@ def send_email(html, report_date, sector_count):
     if not api_key:
         print("[邮件] 未设置RESEND_API_KEY")
         return
-    subject = f"美股龙头候选 {report_date} · {sector_count}个启动板块"
+    subject = f"投资分析 - 美股龙头候选 {report_date} · {sector_count}个启动板块"
     res = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
