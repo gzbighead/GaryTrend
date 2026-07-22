@@ -131,7 +131,6 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 哪个板块的变化最值得警惕或关注，为什么")
     lines.append("")
     lines.append("3. 关键标的的位置")
-    lines.append("   - 列举标普500，纳斯达克100的最新收盘指数")
     lines.append("   - 指数距趋势线的距离意味着什么（多空博弈的边界在哪）")
     lines.append("")
     lines.append("4. 操作建议")
