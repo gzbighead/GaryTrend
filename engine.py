@@ -238,8 +238,7 @@ def calc_signals(results, date):
 def calc_trend_series(results, days=60):
     """
     取最近days个交易日，每天计算多头占比
-    只保留数据完整的日期（total >= 所有结果数量的50%）
-    最后一天无论是否完整都纳入，保证与信号日期一致
+    只保留数据完整的日期（total >= 所有结果数量的80%）
     返回: [{date, bull_pct, bull, adj, bear, total}, ...]
     """
     # 收集所有日期
@@ -253,16 +252,12 @@ def calc_trend_series(results, days=60):
 
     total_results = len(results)
     threshold     = total_results * 0.5  # 至少50%标的有数据才纳入
-    last_date     = all_dates[-1] if all_dates else None  # 最新日期必须纳入
 
     series = []
     for date in recent_dates:
         state = calc_state(results, date)
         t     = state["total"]
-        # 最后一天强制纳入，其他日期需满足完整性阈值
-        if t < threshold and date != last_date:
-            continue
-        if t == 0:
+        if t < threshold:
             continue
         pct = round(state["bull"] / t * 100) if t else 0
         series.append({
