@@ -159,7 +159,7 @@ def call_claude(prompt):
             "max_tokens": 4000,
             "messages":   [{"role": "user", "content": prompt}],
         },
-        timeout=60,
+        timeout=120,
     )
     if res.status_code == 200:
         return res.json()["content"][0]["text"]
