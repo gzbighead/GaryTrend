@@ -31,13 +31,6 @@ WATCHLIST_US = [
     ("MDY",  "标普中型股400ETF-SPDR"),
     ("IJH",  "标普中型股ETF-iShares"),
     ("IJR",  "标普小盘股ETF-iShares"),
-    ("IWB",  "罗素1000ETF-iShares"),
-    ("IWV",  "罗素3000ETF-iShares"),
-    ("OEF",  "标普100ETF-iShares"),
-    ("IWF",  "罗素1000成长ETF-iShares"),
-    ("IWD",  "罗素1000价值ETF-iShares"),
-    ("VUG",  "成长ETF-Vanguard"),
-    ("VTV",  "价值ETF-Vanguard"),
 
     # ── 科技ETF ───────────────────────────────────────────────────────────
     ("XLK",  "科技行业ETF-SPDR"),
@@ -273,8 +266,7 @@ WATCHLIST_US = [
 # ─── 指数代码白名单 ────────────────────────────────────────────────────────
 INDEX_CODES_US = {
     "SPY", "QQQ", “COWZ", "IWM", "DIA", "VOO", "IVV",
-    "VTI", "MDY", "IJH", "IJR", "IWB", "IWV", "OEF",
-    "IWF", "IWD", "VUG", "VTV", 
+    "VTI", "MDY", "IJH", "IJR", 
 }
 
 # ─── ETF板块关键词（顺序敏感，具体词优先于宽泛词）────────────────────────
