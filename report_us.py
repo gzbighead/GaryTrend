@@ -131,7 +131,7 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 哪个板块的变化最值得警惕或关注，为什么")
     lines.append("")
     lines.append("3. 关键标的的位置")
-    lines.append("   - 指数距趋势线的距离意味着什么（多空博弈的边界在哪）")
+    lines.append("   - 跟踪watchlist中所有关键标的，描述它们与趋势线的距离意味着什么（多空博弈的边界在哪）")
     lines.append("")
     lines.append("4. 操作建议")
     lines.append("   - 基于以上资金流向判断，现在应该做什么、等什么信号")
