@@ -272,9 +272,9 @@ WATCHLIST_US = [
 
 # ─── 指数代码白名单 ────────────────────────────────────────────────────────
 INDEX_CODES_US = {
-    "SPY", "QQQ", "IWM", "DIA", "VOO", "IVV",
+    "SPY", "QQQ", “COWZ", "IWM", "DIA", "VOO", "IVV",
     "VTI", "MDY", "IJH", "IJR", "IWB", "IWV", "OEF",
-    "IWF", "IWD", "VUG", "VTV",
+    "IWF", "IWD", "VUG", "VTV", 
 }
 
 # ─── ETF板块关键词（顺序敏感，具体词优先于宽泛词）────────────────────────
