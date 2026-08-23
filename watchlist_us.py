@@ -265,7 +265,7 @@ WATCHLIST_US = [
 
 # ─── 指数代码白名单 ────────────────────────────────────────────────────────
 INDEX_CODES_US = {
-    "SPY", "QQQ", “COWZ", "IWM", "DIA", "VOO", "IVV",
+    "SPY", "QQQ", "COWZ", "IWM", "DIA", "VOO", "IVV",
     "VTI", "MDY", "IJH", "IJR", 
 }
 
