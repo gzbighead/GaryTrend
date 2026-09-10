@@ -7,8 +7,12 @@ on:
 jobs:
   report:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 安装Python依赖
         run: pip install yfinance numpy requests
@@ -18,3 +22,11 @@ jobs:
           RESEND_API_KEY:    ${{ secrets.RESEND_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python report_a.py
+
+      - name: 提交组合更新
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add portfolio_a.json
+          git diff --staged --quiet || git commit -m "更新A股组合 $(date +%Y-%m-%d)"
+          git push
