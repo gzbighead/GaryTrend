@@ -23,10 +23,3 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python report_a.py
 
-      - name: 提交组合更新
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add portfolio_a.json
-          git diff --staged --quiet || git commit -m "更新A股组合 $(date +%Y-%m-%d)"
-          git push
