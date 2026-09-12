@@ -9,6 +9,8 @@
 """
 
 import os
+import json
+import subprocess
 import datetime
 import requests
 
@@ -54,8 +56,86 @@ def dir_color(d):
     return "#1a7340" if "↑" in d else ("#922b21" if "↓" in d else "#888")
 
 # ─── 组织AI prompt ─────────────────────────────────────────────────────────
+PORTFOLIO_FILE = "portfolio_us.json"
+
+def load_portfolio():
+    """读取上次组合，不存在则返回空组合"""
+    if os.path.exists(PORTFOLIO_FILE):
+        try:
+            with open(PORTFOLIO_FILE) as f:
+                return json.load(f)
+        except:
+            pass
+    return {"date": "", "cash": 1.0, "positions": []}
+
+def save_portfolio(portfolio):
+    """保存组合到文件并git commit"""
+    with open(PORTFOLIO_FILE, "w") as f:
+        json.dump(portfolio, f, ensure_ascii=False, indent=2)
+    try:
+        subprocess.run(["git", "config", "user.name", "github-actions"], check=True)
+        subprocess.run(["git", "config", "user.email", "actions@github.com"], check=True)
+        subprocess.run(["git", "add", PORTFOLIO_FILE], check=True)
+        result = subprocess.run(["git", "diff", "--staged", "--quiet"])
+        if result.returncode != 0:
+            subprocess.run(["git", "commit", "-m", f"更新美股组合 {portfolio['date']}"], check=True)
+            subprocess.run(["git", "push"], check=True)
+            print("[组合] 已保存并提交")
+    except Exception as e:
+        print(f"[组合] git提交失败: {e}")
+
+def parse_portfolio(ai_text, report_date):
+    """从AI输出里解析[PORTFOLIO]...[/PORTFOLIO]标签"""
+    import re
+    match = re.search(r'\[PORTFOLIO\](.*?)\[/PORTFOLIO\]', ai_text, re.DOTALL)
+    if not match:
+        return None
+    block   = match.group(1).strip()
+    portfolio = {"date": report_date, "cash": 1.0, "positions": []}
+    for line in block.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("现金:") or line.startswith("现金："):
+            try:
+                pct = float(line.replace("现金:","").replace("现金：","").replace("%","").strip())
+                portfolio["cash"] = round(pct / 100, 2)
+            except:
+                pass
+        elif "|" in line:
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) >= 4:
+                try:
+                    portfolio["positions"].append({
+                        "symbol":     parts[0],
+                        "name":       parts[1],
+                        "weight":     round(float(parts[2].replace("%","")) / 100, 2),
+                        "reason":     parts[3],
+                        "entry_date": report_date,  # 新进入的标的记录今天日期
+                    })
+                except:
+                    pass
+    return portfolio
+
+def merge_entry_dates(new_portfolio, old_portfolio):
+    """保留已有标的的进入日期，新进入的标的用今天日期"""
+    old_map = {p["symbol"]: p.get("entry_date", "") for p in old_portfolio.get("positions", [])}
+    for p in new_portfolio.get("positions", []):
+        if p["symbol"] in old_map and old_map[p["symbol"]]:
+            p["entry_date"] = old_map[p["symbol"]]  # 保留原有进入日期
+    return new_portfolio
+
+def fmt_portfolio_for_prompt(portfolio):
+    """格式化组合供prompt使用"""
+    lines = []
+    lines.append(f"现金：{round(portfolio['cash']*100)}%")
+    for p in portfolio.get("positions", []):
+        entry = p.get("entry_date", "未知")
+        lines.append(f"  {p['symbol']} {p['name']}：{round(p['weight']*100)}%  进入日期:{entry}  （{p['reason']}）")
+    return "\n".join(lines)
+
 def build_prompt(report_date, signal_dates, signals_by_date,
-                 current_state, sector_state, trend_series, sector_trend, results):
+                 current_state, sector_state, trend_series, sector_trend, results, portfolio):
     lines = []
     lines.append(f"以下是美股市场截至 {report_date} 的Supertrend技术面扫描数据。")
     lines.append("请根据数据给出市场分析和投资建议，重点关注趋势方向和板块轮动。")
@@ -118,6 +198,16 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("- 指出数据之间的矛盾或异常，这往往是最有价值的信号")
     lines.append("- 结论必须能从数据中找到直接依据，不做无根据的推测")
     lines.append("")
+
+    # 当前组合
+    lines.append("【当前持仓组合】")
+    if portfolio.get("positions"):
+        lines.append(fmt_portfolio_for_prompt(portfolio))
+    else:
+        lines.append("当前全部现金，尚未建仓")
+    lines.append(f"（上次更新：{portfolio.get('date') or '无'}）")
+    lines.append("")
+
     lines.append("请用中文输出分析报告，结构如下：")
     lines.append("")
     lines.append("1. 资金流向判断")
@@ -131,13 +221,24 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 哪个板块的变化最值得警惕或关注，为什么")
     lines.append("")
     lines.append("3. 关键标的的位置")
-    lines.append("   - 跟踪watchlist中所有关键标的，描述它们与趋势线的距离意味着什么（多空博弈的边界在哪）")
+    lines.append("   - 指数距趋势线的距离意味着什么（多空博弈的边界在哪）")
     lines.append("")
     lines.append("4. 操作建议")
     lines.append("   - 基于以上资金流向判断，现在应该做什么、等什么信号")
     lines.append("   - 趋势跟踪原则：资本保护优先，只在右侧确认后入场，不抄底")
-    lines.append("   - 在发现某个标的趋势确定性高的时候，可以直接推荐 ") 
-    lines.append("   - 你是一位极富经验的组合经理，你目前的组合是什么？列出组合中的标的以及在组合中的占比 ")    
+    lines.append("   - 在发现某个标的趋势确定性高的时候，可以直接推荐 ")
+    lines.append("")
+    lines.append("5. 组合调整")
+    lines.append("   - 规则：最多5只标的（不含现金），每只不超过20%，其余为现金")
+    lines.append("   - 基于今天的分析，哪些标的保留/增减仓/调出，哪些新标的加入")
+    lines.append("   - 只选趋势确定性最高的标的，宁可空仓也不凑数")
+    lines.append("   - 已在组合里的标的，除非趋势明确转弱，否则保持持仓连续性")
+    lines.append("   - 输出新组合，严格按以下格式（仓位用整数%）：")
+    lines.append("     [PORTFOLIO]")
+    lines.append("     现金:XX%")
+    lines.append("     代码|名称|仓位%|理由")
+    lines.append("     代码|名称|仓位%|理由")
+    lines.append("     [/PORTFOLIO]")
     lines.append("")
     lines.append("风格：态度鲜明，直接给结论，说清楚依据。没有100%正确的投资，只有废话才能100%正确。分析可以错，但不能模糊。不写'需要观察''存在可能''或许'这类股评式的模糊表达。每一个判断都要有明确立场。")
 
@@ -419,14 +520,27 @@ def main():
     trend_series  = calc_trend_series(results, TREND_DAYS)
     sector_trend  = calc_sector_trend(results, TREND_DAYS)
 
-    # 6. 调用AI
-    prompt      = build_prompt(report_date, signal_dates, signals_by_date,
-                               current_state, sector_state, trend_series, sector_trend, results)
+    # 6. 读取上次组合
+    portfolio = load_portfolio()
+    print(f"[组合] 上次组合: {portfolio['date'] or '无'} 持仓{len(portfolio['positions'])}只")
+
+    # 7. 调用AI
+    prompt  = build_prompt(report_date, signal_dates, signals_by_date,
+                           current_state, sector_state, trend_series, sector_trend, results, portfolio)
     print("[调用Claude API]")
-    ai_text     = call_claude(prompt)
+    ai_text = call_claude(prompt)
     print("[AI完成]")
 
-    # 7. 生成HTML并发邮件
+    # 8. 解析并保存组合
+    new_portfolio = parse_portfolio(ai_text, report_date)
+    if new_portfolio:
+        new_portfolio = merge_entry_dates(new_portfolio, portfolio)
+        save_portfolio(new_portfolio)
+        print(f"[组合] 新组合: 现金{round(new_portfolio['cash']*100)}% 持仓{len(new_portfolio['positions'])}只")
+    else:
+        print("[组合] 未能解析组合，保持上次不变")
+
+    # 9. 生成HTML并发邮件
     html = build_html(report_date, signal_dates, signals_by_date,
                       current_state, sector_state, trend_series, sector_trend,
                       results, ai_text)
