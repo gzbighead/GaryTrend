@@ -229,7 +229,7 @@ def build_prompt(report_date, signal_dates, signals_by_date,
     lines.append("   - 在发现某个标的趋势确定性高的时候，可以直接推荐 ")
     lines.append("")
     lines.append("5. 组合调整")
-    lines.append("   - 规则：最多5只标的（不含现金），每只不超过20%，其余为现金")
+    lines.append("   - 规则：最多4只标的（不含现金），每只不超过50%，其余为现金")
     lines.append("   - 基于今天的分析，哪些标的保留/增减仓/调出，哪些新标的加入")
     lines.append("   - 只选趋势确定性最高的标的，宁可空仓也不凑数")
     lines.append("   - 已在组合里的标的，除非趋势明确转弱，否则保持持仓连续性")
